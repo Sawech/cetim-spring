@@ -15,9 +15,10 @@ public class CorsConfig {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
                         .allowedOrigins(
-                            "http://localhost:3000", // local dev
-                            "https://cetim-react-khd1evcmv-sawechs-projects.vercel.app" // deployed Vercel frontend
-                        )
+                                "http://localhost:3000", // local dev
+                                "https://cetim-react.vercel.app", // current deployed frontend
+                                "https://cetim-react-khd1evcmv-sawechs-projects.vercel.app" // old vercel preview
+                )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);
