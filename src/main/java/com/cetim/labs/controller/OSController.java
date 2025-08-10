@@ -110,6 +110,28 @@ public class OSController {
 
             // Generate the document for the new OS
             documentGenerationService.generateDocument(savedOS, null);
+
+            RapportFinal rapportFinal = new RapportFinal();
+            rapportFinal.setOS(serviceOrder);
+            serviceOrder.setRE(rapportFinal);
+            rapportFinal = RaportFinalRepository.save(rapportFinal); 
+
+            for (Order order : serviceOrder.getOrders()) {
+                
+                FicheDessai ficheDessai = new FicheDessai();
+                ficheDessai.setOrder(order);
+                ficheDessai.setCreationDate(new Date());
+                ficheDessai.setStatu(SStatus.NOUVEAU);
+                ficheDessai.setServiceOrder(serviceOrder);
+                
+                ficheDessai = ficheDessaiRepository.save(ficheDessai);
+                
+                documentGenerationService.generateDocument(null, ficheDessai);
+                
+                serviceOrder.addFicheDessai(ficheDessai);
+            }
+
+            serviceOrder.setStatus(SStatus.ACCEPTE);
             
             return ResponseEntity.status(HttpStatus.CREATED).body(savedOS);
         } catch (Exception e) {
