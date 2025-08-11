@@ -50,10 +50,10 @@ import com.cetim.labs.repository.RapportPartielRepository;
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class OSController {
 
-	@Autowired
+    @Autowired
     private OSRepository osRepository;
-	
-	@Autowired
+
+    @Autowired
     private TestRepository testRepository;
 
     @Autowired
@@ -70,7 +70,6 @@ public class OSController {
 
     @Autowired
     private RapportPartielRepository rapportPartielRepository;
-    
 
     @PostMapping("/createOS")
     @Transactional
@@ -85,11 +84,11 @@ public class OSController {
                 echantillon.setEchantillonCode(orderDTO.getEchantillonID());
 
                 EchantillonTypes ET = ETRepository.findByName(orderDTO.getEchantillonType())
-                    .orElseThrow(() -> new EntityNotFoundException("EchantillonType not found"));
+                        .orElseThrow(() -> new EntityNotFoundException("EchantillonType not found"));
 
                 echantillon.setEchantillonType(ET);
                 echantillon.setDate(new Date());
-                
+
                 Order order = new Order();
                 order.setEchantillon(echantillon);
                 order.setDelai(orderDTO.getDelai());
@@ -98,8 +97,8 @@ public class OSController {
                 if (orderDTO.getTests() != null && !orderDTO.getTests().isEmpty()) {
                     Set<Test> allTests = new HashSet<>(testRepository.findAllByTestCodeIn(orderDTO.getTests()));
                     Set<Test> primaryTests = allTests.stream()
-                        .filter(Test::isIsPrimaryTest)
-                        .collect(Collectors.toSet());
+                            .filter(Test::isIsPrimaryTest)
+                            .collect(Collectors.toSet());
                     order.setTests(primaryTests);
                 }
 
@@ -114,30 +113,37 @@ public class OSController {
             RapportFinal rapportFinal = new RapportFinal();
             rapportFinal.setOS(serviceOrder);
             serviceOrder.setRE(rapportFinal);
-            rapportFinal = RaportFinalRepository.save(rapportFinal); 
+            rapportFinal = RaportFinalRepository.save(rapportFinal);
 
             for (Order order : serviceOrder.getOrders()) {
-                
+
+                RapportPartiel rapportPartiel = new RapportPartiel();
                 FicheDessai ficheDessai = new FicheDessai();
                 ficheDessai.setOrder(order);
                 ficheDessai.setCreationDate(new Date());
                 ficheDessai.setStatu(SStatus.NOUVEAU);
                 ficheDessai.setServiceOrder(serviceOrder);
-                
+
+                ficheDessai.setRaportPartiel(rapportPartiel);
+                rapportPartiel.setFicheEssai(ficheDessai);
+
+                rapportPartiel.setRapportFinal(rapportFinal);
+
                 ficheDessai = ficheDessaiRepository.save(ficheDessai);
-                
+                rapportPartielRepository.save(rapportPartiel);
+
                 documentGenerationService.generateDocument(null, ficheDessai);
-                
+
                 serviceOrder.addFicheDessai(ficheDessai);
             }
 
             serviceOrder.setStatus(SStatus.ACCEPTE);
-            
+
             return ResponseEntity.status(HttpStatus.CREATED).body(savedOS);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error creating OS: " + e.getMessage());
+                    .body("Error creating OS: " + e.getMessage());
         }
     }
 
@@ -145,18 +151,18 @@ public class OSController {
     public ResponseEntity<?> getOS(@PathVariable int id) {
         try {
             ServiceOrder os = osRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("OS not found"));
-            
+                    .orElseThrow(() -> new RuntimeException("OS not found"));
+
             ServiceOrderDTO osDTO = new ServiceOrderDTO();
             osDTO.setOSID(id);
 
             if (os.getRaportFinal() != null) {
                 osDTO.setRaportFinalRE(os.getRaportFinal().getId());
-                
+
             }
             osDTO.setDate(os.getDate());
             osDTO.setStatus(os.getStatus());
-            
+
             for (Order order : os.getOrders()) {
                 OrderDTO orderDTO = new OrderDTO();
                 orderDTO.setOrderID(order.getOrderID());
@@ -173,14 +179,14 @@ public class OSController {
 
                     orderDTO.addTestDTO(testDTO);
                 }
-                
+
                 osDTO.addOrder(orderDTO);
             }
-            
+
             return ResponseEntity.ok(osDTO);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body("OS not found: " + e.getMessage());
+                    .body("OS not found: " + e.getMessage());
         }
     }
 
@@ -201,7 +207,7 @@ public class OSController {
                         orderDTO.setOrderID(order.getOrderID());
                         orderDTO.setEchantillonID(order.getEchantillon().getEchantillonCode());
                         orderDTO.setDelai(order.getDelai());
-                        
+
                         osDTO.addOrder(orderDTO);
                     }
 
@@ -209,13 +215,13 @@ public class OSController {
 
                 } else {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body("OS not found");
+                            .body("OS not found");
                 }
             }
             return ResponseEntity.ok(osDTOList);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error fetching OS list: " + e.getMessage());
+                    .body("Error fetching OS list: " + e.getMessage());
         }
     }
 
@@ -227,23 +233,23 @@ public class OSController {
             Optional<ServiceOrder> osOptional = osRepository.findById(id);
             if (!osOptional.isPresent()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("OS not found with ID: " + id);
+                        .body("OS not found with ID: " + id);
             }
-            
+
             ServiceOrder os = osOptional.get();
-            
+
             // Clear the tests from each order before deletion
             for (Order order : os.getOrders()) {
                 order.setTests(new HashSet<>());
             }
-            
+
             // Delete the OS (this will cascade delete the orders)
             osRepository.delete(os);
-            
+
             return ResponseEntity.ok("OS deleted successfully");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error deleting OS: " + e.getMessage());
+                    .body("Error deleting OS: " + e.getMessage());
         }
     }
 
@@ -252,9 +258,8 @@ public class OSController {
     public ResponseEntity<?> acceptOS(@PathVariable int id) {
         try {
             ServiceOrder os = osRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("OS not found"));
+                    .orElseThrow(() -> new RuntimeException("OS not found"));
 
-  
             if (os.getOrders() == null || os.getOrders().isEmpty()) {
                 return ResponseEntity.badRequest().body("OS has no orders");
             }
@@ -262,27 +267,27 @@ public class OSController {
             RapportFinal rapportFinal = new RapportFinal();
             rapportFinal.setOS(os);
             os.setRE(rapportFinal);
-            rapportFinal = RaportFinalRepository.save(rapportFinal); 
+            rapportFinal = RaportFinalRepository.save(rapportFinal);
 
             for (Order order : os.getOrders()) {
                 RapportPartiel rapportPartiel = new RapportPartiel();
-                
+
                 FicheDessai ficheDessai = new FicheDessai();
                 ficheDessai.setOrder(order);
                 ficheDessai.setCreationDate(new Date());
                 ficheDessai.setStatu(SStatus.NOUVEAU);
                 ficheDessai.setServiceOrder(os);
-                
+
                 ficheDessai.setRaportPartiel(rapportPartiel);
                 rapportPartiel.setFicheEssai(ficheDessai);
-                
+
                 rapportPartiel.setRapportFinal(rapportFinal);
-                
+
                 ficheDessai = ficheDessaiRepository.save(ficheDessai);
                 rapportPartielRepository.save(rapportPartiel);
-                
+
                 documentGenerationService.generateDocument(null, ficheDessai);
-                
+
                 os.addFicheDessai(ficheDessai);
             }
 
@@ -291,7 +296,7 @@ public class OSController {
             return ResponseEntity.ok("OS accepted successfully");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error accepting OS: " + e.getMessage());
+                    .body("Error accepting OS: " + e.getMessage());
         }
     }
 
@@ -300,13 +305,13 @@ public class OSController {
     public ResponseEntity<?> rejectOS(@PathVariable int id) {
         try {
             ServiceOrder os = osRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("OS not found"));
+                    .orElseThrow(() -> new RuntimeException("OS not found"));
             os.setStatus(SStatus.REJETE);
             osRepository.save(os);
             return ResponseEntity.ok("OS rejected successfully");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error rejecting OS: " + e.getMessage());
+                    .body("Error rejecting OS: " + e.getMessage());
         }
     }
 
@@ -315,15 +320,14 @@ public class OSController {
     public ResponseEntity<?> StatuHandling(@PathVariable int id, @RequestBody SStatus status) {
         try {
             ServiceOrder os = osRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("OS not found"));
+                    .orElseThrow(() -> new RuntimeException("OS not found"));
             os.setStatus(status);
             osRepository.save(os);
             return ResponseEntity.ok("OS rejected successfully");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error rejecting OS: " + e.getMessage());
+                    .body("Error rejecting OS: " + e.getMessage());
         }
     }
 
-    
 }
